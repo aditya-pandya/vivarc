@@ -177,6 +177,18 @@
   opacity: 0.75;
 }
 #vm-panel .vm-row:hover .vm-act { display: flex; }
+#vm-panel .vm-row .vm-act.vm-back { display: flex; opacity: 0.9; }
+#vm-panel .vm-fav .vm-back {
+  display: none;
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  background: color-mix(in srgb, var(--colorBg, #222) 70%, transparent);
+}
+#vm-panel .vm-fav:hover .vm-back { display: flex; }
 #vm-panel .vm-act:hover { opacity: 1; background-color: color-mix(in srgb, var(--colorFg) 18%, transparent); }
 
 #vm-panel .vm-divider {

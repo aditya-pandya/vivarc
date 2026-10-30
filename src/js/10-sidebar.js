@@ -409,7 +409,11 @@
     if (away) row.append(el("span", "vm-away-mark", "/"));
     const title = el("span", "vm-title", away ? (tab.title || tab.url) : (node.title || node.url));
     row.append(title);
-    if (away) row.append(actionButton("↩", "Back to pinned page", () => backToPin(tab, node)));
+    if (away) {
+      const back = actionButton("↩", "Back to pinned page", () => backToPin(tab, node));
+      back.classList.add("vm-back"); // shown without hovering, like Arc's arrow on a pinned tab that has moved on
+      row.append(back);
+    }
     if (!tab) row.append(actionButton("×", "Remove from Pinned", () => discard(node)));
     else if (away) row.append(actionButton("–", "Separate From Pinned Tab", () => separate(tab, node)));
     else row.append(actionButton("–", "Close tab", () => chrome.tabs.remove(tab.id)));
@@ -496,6 +500,11 @@
     if (tab?.active) tile.classList.add("active");
     if (away) tile.classList.add("away");
     tile.append(iconEl(node.url, away ? undefined : tab?.favIconUrl));
+    if (away) {
+      const back = actionButton("↩", "Back to favorite page", () => backToPin(tab, node));
+      back.classList.add("vm-back");
+      tile.append(back);
+    }
     tile.addEventListener("click", (e) => { if (e.detail < 2) focusOrOpen(node); });
     tile.addEventListener("dblclick", () => renameFavorite(tile, node));
     tile.addEventListener("contextmenu", bookmarkMenu(node, true));
