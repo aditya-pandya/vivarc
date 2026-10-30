@@ -11,6 +11,7 @@
       label: "Favorites tile size", hint: "How wide a favorites tile is. Smaller tiles fit more to a row, like Arc's.", low: "Compact", high: "Large" },
     { key: "spaceBar", label: "Space bar", hint: "The row of space tiles under the sidebar.", default: true, offClass: "vm-no-space-bar" },
     { key: "hoverCard", label: "Hover card", hint: "Hover a tab for a moment to see its full title and address, like Arc.", default: true },
+    { key: "littleLinks", label: "Little window for outside links", hint: "Experimental. A link opened from another app opens in a small window, like Little Arc, instead of a tab. Use Keep in Main Window to bring it back.", default: false },
     { key: "compactBottomBar", label: "Compact bottom bar", hint: "A tighter row for the profile avatars and downloads.", default: true,
       fromConfig: (c) => c.compactBottomBar, onClass: "vm-compact-bottom" },
     { key: "searchSuggestions", label: "Search suggestions", hint: "Show DuckDuckGo suggestions in the command bar while you type.", default: true,

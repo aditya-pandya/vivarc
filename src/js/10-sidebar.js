@@ -551,6 +551,7 @@
       ] : []),
       ["Rename…", () => startTabRename(row.querySelector(".vm-title"), tab)],
       ...(custom ? [["Reset Name", async () => { await writeExt(tab.id, { [pinLinks.TITLE]: undefined }); refresh(false); }]] : []),
+      ["Open in Little Window", () => window.__vm.little?.open(tab)],
       ["Duplicate Tab", () => chrome.tabs.duplicate(tab.id)],
       ["Copy Link", () => copy(tab.url)],
       [],

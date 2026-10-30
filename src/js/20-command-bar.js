@@ -138,6 +138,12 @@
     { label: "Split View: Side by Side", words: "split tile vertical columns", tab: true, run: (tab) => splitView(tab, "row") },
     { label: "Split View: Top and Bottom", words: "split tile horizontal rows", tab: true, run: (tab) => splitView(tab, "column") },
     { label: "Close Split View", words: "unsplit untile split", tab: true, when: (tab) => !!window.__vm.tilingOf(tab), run: closeSplitView },
+    { label: "Open in Little Window", words: "little arc popup small floating window", tab: true, run: async (tab) => {
+      if (!(await window.__vm.little?.open(tab))) toast("Already in a little window");
+    } },
+    { label: "Keep in Main Window", words: "little arc popup move back", tab: true, run: async (tab) => {
+      if (!(await window.__vm.little?.keep(tab))) toast("Not in a little window");
+    } },
     { label: "Duplicate Tab", words: "clone copy", tab: true, run: (tab) => chrome.tabs.duplicate(tab.id) },
     { label: "Mute / Unmute Tab", words: "sound audio silence", tab: true, run: (tab) =>
       chrome.tabs.update(tab.id, { muted: !tab.mutedInfo?.muted }) },
