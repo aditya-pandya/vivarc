@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **Peek settings from config.json.** A `"peek"` block in `~/.vivarc/config.json` now sets how Peek opens (for example Arc's Shift+click, or no automatic opening). Peek itself is unchanged and still verified by hash; Vivarc writes the settings where Peek reads them. See the README.
 - **Command bar searches your pins and folders.** Typing finds favorites and pinned links of every space first, labelled with where they live (for example "Pinned · Reading"), and pinned folders by name; choosing a folder opens it in the sidebar, scrolls to it and flashes it.
 - **A color for each space.** Right-click a space tile, **Space Color…**, and pick one of nine tints; the sidebar takes it on while that space is showing, so spaces are told apart at a glance. **No color** goes back to the sidebar theme (the profile's grain still applies).
 - **Back to the pinned page, always in view.** A pinned link that has navigated away now shows its ↩ button without hovering (it used to appear only on hover), and an away favorite tile gets the same button on hover.

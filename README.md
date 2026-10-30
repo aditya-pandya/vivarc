@@ -134,6 +134,8 @@ In each Vivaldi profile: **File > Import Bookmarks and Settings… > HTML file**
 
 Every file Vivarc edits is backed up in `~/.vivarc/backup/`, existing shortcuts are kept, and `uninstall` restores the original values. The styles ship inside the script, so a Vivaldi update can never leave you with half a UI. No Vivaldi flags are changed. See [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md) for exactly what changes and how it works.
 
+**Peek settings.** Peek opens a link in a floating preview when you hold the middle mouse button on it, Alt+click it, or click a link inside a pinned tab; Esc or Cmd+W closes it. To change that, add a `"peek"` block to `~/.vivarc/config.json` and run Update Vivarc, for example `"peek": {"clickOpenModifiers": ["shift"], "autoOpenList": []}` for Arc's Shift+click and no automatic opening. The keys are `clickOpenModifiers`, `longPressButtons`, `longPressHoldTime`, `longPressHoldDelay`, `autoOpenList` and `scaleBackgroundPage`.
+
 **Smart tab titles (optional).** Right-click a tab, or use the command bar, for **Suggest Title**: a Claude model writes a short name for it. It is off until you add `"anthropicKey": "sk-ant-..."` to `~/.vivarc/config.json` and run Update Vivarc; `"titleModel"` picks another model (default `claude-haiku-5-5`). Only when you ask, it sends the tab's title and its address without any query or fragment to `api.anthropic.com`, never page content. Because Vivarc embeds the config into its script, the key is also stored in the installed `vivarc.js` inside Vivaldi.app.
 
 The command bar sends what you type to DuckDuckGo's autocomplete for suggestions; set `"suggestions": "off"` in `~/.vivarc/config.json` to turn that off.
