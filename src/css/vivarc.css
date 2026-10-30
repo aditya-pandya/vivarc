@@ -219,6 +219,22 @@
   border: 1px solid color-mix(in srgb, var(--colorFg, #fff) 14%, transparent);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
 }
+.vm-card {
+  position: fixed;
+  z-index: 99999;
+  max-width: 320px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  pointer-events: none;
+  color: var(--vm-text);
+  background: var(--vm-surface);
+  border: 1px solid color-mix(in srgb, var(--colorFg, #fff) 14%, transparent);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.4);
+}
+.vm-card-title { font-weight: 600; overflow-wrap: anywhere; }
+.vm-card-url { margin-top: 3px; opacity: 0.6; font-size: 12px; overflow-wrap: anywhere; }
+.vm-card-note { margin-top: 6px; opacity: 0.8; font-size: 12px; }
 .vm-menu-item { padding: 7px 12px; border-radius: 8px; cursor: pointer; }
 .vm-menu-item:hover { background-color: color-mix(in srgb, var(--colorFg, #fff) 14%, transparent); }
 .vm-menu-item.danger { color: #ff6b6b; }

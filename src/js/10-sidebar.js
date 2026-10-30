@@ -170,6 +170,28 @@
   // ---- context menu ----
   let menu = null;
   const closeMenu = () => { menu?.remove(); menu = null; };
+
+  // ---- hover card: after a short rest on a tab row, its full title and address (Arc shows the same) ----
+  let card = null, cardTimer = 0;
+  const hideCard = () => { clearTimeout(cardTimer); card?.remove(); card = null; };
+  const wireHoverCard = (row, tab, title) => {
+    row.addEventListener("mouseenter", () => {
+      hideCard();
+      if (!window.__vm.settings.get("hoverCard")) return;
+      cardTimer = setTimeout(() => {
+        if (!row.isConnected || drag || editing || menu) return;
+        card = el("div", "vm-card");
+        card.append(el("div", "vm-card-title", title), el("div", "vm-card-url", tab.url || ""));
+        const note = tab.mutedInfo?.muted ? "Muted" : tab.audible ? "Playing sound" : tab.discarded ? "Sleeping" : "";
+        if (note) card.append(el("div", "vm-card-note", note));
+        (document.querySelector("#browser") || document.body).append(card);
+        const r = row.getBoundingClientRect(), c = card.getBoundingClientRect();
+        card.style.left = `${r.right + 8}px`;
+        card.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - c.height - 8))}px`;
+      }, 600);
+    });
+    for (const ev of ["mouseleave", "mousedown", "contextmenu", "dragstart"]) row.addEventListener(ev, hideCard);
+  };
   const showMenu = (event, items) => {
     event.preventDefault();
     event.stopPropagation();
@@ -478,8 +500,8 @@
     row.style.paddingLeft = "8px";
     if (tab.active) row.classList.add("active");
     if (tab.discarded) row.classList.add("discarded");
-    row.title = tab.url;
     const custom = pinLinks.titleOf(tab);
+    wireHoverCard(row, tab, custom ?? (tab.title || tab.url));
     row.append(iconEl(tab.url, tab.favIconUrl), el("span", "vm-title", custom ?? (tab.title || tab.url)));
     if (window.__vm.tilingOf(tab)) row.append(el("span", "vm-split-mark", "◫"));
     // Like Arc: a speaker on a tab that is playing sound (or was muted), one click toggles mute.

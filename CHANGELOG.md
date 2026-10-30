@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **Hover card.** Rest the pointer on an open tab and a small card beside it shows the full title, the address, and whether it is playing sound, muted or sleeping. It replaces the browser's plain tooltip and can be turned off with the **Hover card** switch in Vivarc Settings.
 - **Sound indicator.** A tab that is playing audio shows a speaker in its row; click it to mute (it stays as a dimmed muted speaker until you click again). Clicking it does not switch to the tab.
 - **Double-click to rename.** Double-click a favorite, a pinned link, a folder or an open tab to rename it in place (Enter saves, Escape cancels). An open tab keeps the name you give it until you clear it (empty the field, or right-click and pick **Reset Name**); the page's own title is never changed. The second click of a double-click no longer opens a second tab from a pin, and the sidebar no longer re-renders under a name you are typing.
 - **Arc-sized favorites.** Tiles are smaller and denser, like Arc's (about four to a row instead of three, with an 18px icon). A new **Favorites tile size** slider in Vivarc Settings goes from compact to large.
