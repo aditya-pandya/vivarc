@@ -117,5 +117,12 @@
   const removalLabel = (name, tabCount) =>
     `Delete \u201c${name}\u201d${tabCount ? ` and close its ${tabCount} ${tabCount === 1 ? "tab" : "tabs"}` : ""}`;
 
-  window.__vm.workspaces = { of, tabsIn, activeId, scope, items, recentTab, label, assign, stamp, findManager, findRemover, reorder, neighbour, renamedFolder, removalLabel, CREATE_HINT };
+  // The preset a space is tinted with, from the saved map {spaceId: presetIndex}; undefined when it has none
+  // (or the saved value is not a valid preset, for example after the palette changed).
+  const tintOf = (tints, id, count) => {
+    const v = tints?.[id];
+    return Number.isInteger(v) && v >= 0 && v < count ? v : undefined;
+  };
+
+  window.__vm.workspaces = { of, tabsIn, activeId, scope, items, recentTab, label, assign, stamp, tintOf, findManager, findRemover, reorder, neighbour, renamedFolder, removalLabel, CREATE_HINT };
 })();

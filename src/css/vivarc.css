@@ -481,6 +481,9 @@
   pointer-events: none;
 }
 .vm-theme-swatches { display: flex; justify-content: space-between; margin: 12px 2px; }
+.vm-theme-pop.vm-space-color { width: 262px; }
+.vm-space-color-title { margin: 0 2px 10px; font-weight: 600; }
+.vm-theme-swatch.on { box-shadow: 0 0 0 2px var(--vm-surface), 0 0 0 4px var(--vm-text); }
 .vm-theme-swatch { width: 22px; height: 22px; border: 0; border-radius: 50%; }
 .vm-theme-slider { display: flex; align-items: center; gap: 10px; margin: 8px 2px; }
 .vm-theme-slider span { width: 62px; opacity: 0.7; }

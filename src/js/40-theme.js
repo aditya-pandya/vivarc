@@ -12,9 +12,22 @@
   const fgFor = (light) => (light > 58 ? "#1b1b1f" : "#f2f2f5");
   const noise = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")";
 
+  // A space can have its own preset tint (right-click its tile, Space Color…). It replaces the profile's theme while
+  // that space is on screen, and the profile's grain still applies.
+  let spaceTints = {};
+  let activeSpace = 0;
+  const spaceTint = (id) => window.__vm.workspaces.tintOf(spaceTints, id, PRESETS.length);
+  const effective = () => {
+    const i = spaceTint(activeSpace);
+    if (i === undefined) return theme;
+    const [, hue, sat, light] = PRESETS[i];
+    return { ...theme, on: true, hue, sat, light };
+  };
+
   const apply = () => {
     const browser = document.querySelector("#browser");
     if (!browser) return;
+    const theme = effective();
     browser.classList.toggle("vm-themed", theme.on);
     const style = browser.style;
     if (!theme.on) {
@@ -116,7 +129,60 @@
   window.__vm.onShortcut((key) => { if (key === "esc") close(); });
   window.addEventListener("vm-open-theme", open);
 
+  // ---- space color: a small palette next to the space's tile ----
+  let tintChannel = null;
+  try {
+    tintChannel = new BroadcastChannel("vivarc-space-tints");
+    tintChannel.onmessage = (e) => { spaceTints = e.data && typeof e.data === "object" ? e.data : {}; apply(); };
+  } catch (_) {}
+  let colorPop = null;
+  const closeColor = () => { colorPop?.remove(); colorPop = null; };
+  const openSpaceColor = (id, name, at) => {
+    closeColor();
+    if (!window.__vm.cssLoaded) return;
+    colorPop = el("div", "vm-theme-pop vm-space-color");
+    colorPop.append(el("div", "vm-space-color-title", `${name} color`));
+    const swatches = el("div", "vm-theme-swatches");
+    // Merged into what is saved now, not into this window's copy: another window may have colored another space.
+    const pick = async (value) => {
+      closeColor();
+      const next = { ...(await store.get("spaceTints", {})) };
+      if (value === undefined) delete next[id]; else next[id] = value;
+      spaceTints = next;
+      apply();
+      await store.set("spaceTints", next);
+      tintChannel?.postMessage(next);
+    };
+    PRESETS.forEach(([color], i) => {
+      const s = el("button", `vm-theme-swatch${spaceTint(id) === i ? " on" : ""}`);
+      s.style.backgroundColor = color;
+      s.title = "Use this color for the space";
+      s.addEventListener("click", () => pick(i));
+      swatches.append(s);
+    });
+    const none = el("button", "vm-theme-reset", "No color (use the sidebar theme)");
+    none.addEventListener("click", () => pick(undefined));
+    colorPop.append(swatches, none);
+    (document.querySelector("#browser") || document.body).append(colorPop);
+    const { width, height } = colorPop.getBoundingClientRect();
+    colorPop.style.left = `${Math.max(8, Math.min(at.x, window.innerWidth - width - 8))}px`;
+    colorPop.style.top = "auto";
+    colorPop.style.bottom = `${Math.max(8, window.innerHeight - at.y + 8)}px`;
+  };
+  document.addEventListener("mousedown", (e) => { if (colorPop && !colorPop.contains(e.target)) closeColor(); }, true);
+  window.__vm.onShortcut((key) => { if (key === "esc") closeColor(); });
+
+  window.__vm.theme = {
+    PRESETS,
+    setActiveSpace: (id) => { if (id !== activeSpace) { activeSpace = id; apply(); } },
+    openSpaceColor,
+  };
+
   window.__vm.onMark(apply);
+  store.get("spaceTints", {}).then((saved) => {
+    spaceTints = saved && typeof saved === "object" ? saved : {};
+    apply();
+  });
   store.get("theme", null).then((saved) => {
     if (saved) theme = { ...DEFAULT, ...saved };
     apply();

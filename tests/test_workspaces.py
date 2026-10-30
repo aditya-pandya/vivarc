@@ -243,3 +243,21 @@ class RenameAndReorder(unittest.TestCase):
     def test_the_manager_is_found_like_the_remover(self):
         out = DeleteSpace().fake("const m = workspaces.findManager(chunks); return [typeof m.removeWorkspace, calls];")
         self.assertEqual(out, ["function", []])
+
+
+@unittest.skipUnless(shutil.which("node"), "node is needed to test the sidebar's JavaScript")
+class SpaceTint(unittest.TestCase):
+    def tint(self, tints, id):
+        return js("workspaces.tintOf(tints, id, 9)", tints=tints, id=id)
+
+    def test_a_space_with_a_saved_preset_gets_it(self):
+        self.assertEqual(self.tint({"7": 3}, 7), 3)
+        self.assertEqual(self.tint({"0": 0}, 0), 0)
+
+    def test_a_space_without_one_follows_the_sidebar_theme(self):
+        self.assertIsNone(self.tint({"7": 3}, 8))
+        self.assertIsNone(self.tint(None, 7))
+
+    def test_a_saved_value_that_is_not_a_preset_is_ignored(self):
+        for bad in (9, -1, 2.5, "3", None):
+            self.assertIsNone(self.tint({"7": bad}, 7))

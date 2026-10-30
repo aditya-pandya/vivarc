@@ -781,10 +781,15 @@
       pill.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/vm-space", String(item.id)); e.dataTransfer.effectAllowed = "move"; });
       pill.addEventListener("contextmenu", (e) => showMenu(e, [
         ["Rename Space…", () => renameSpace(item, pill)],
+        ["Space Color…", () => window.__vm.theme?.openSpaceColor(item.id, item.name, { x: e.clientX, y: e.clientY })],
         ["Move Left", () => moveSpace(item.id, spacesOf.neighbour(state.workspaces, item.id, -1), false)],
         ["Move Right", () => moveSpace(item.id, spacesOf.neighbour(state.workspaces, item.id, 1), true)],
         [],
         ["Delete Space…", () => confirmDeleteSpace(item, e), true],
+      ]));
+    } else {
+      pill.addEventListener("contextmenu", (e) => showMenu(e, [
+        ["Space Color…", () => window.__vm.theme?.openSpaceColor(0, item.name, { x: e.clientX, y: e.clientY })],
       ]));
     }
     pill.addEventListener("dragover", (e) => { if (e.dataTransfer.types.includes("text/vm-space")) { e.preventDefault(); pill.classList.add("drop-target"); } });
@@ -1004,6 +1009,7 @@
     state.allTabs = await chrome.tabs.query({ currentWindow: true });
     state.workspaces = await readWorkspaces();
     ({ active: state.active, tabs: state.tabs } = spacesOf.scope(state.allTabs, state.workspaces));
+    window.__vm.theme?.setActiveSpace(state.active);
   };
 
   // Calls inside the debounce window are merged, and a request to reload bookmarks is never lost to a later
