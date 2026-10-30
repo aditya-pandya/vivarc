@@ -96,5 +96,51 @@
   // Every folder under a Pinned tree, at any depth (the tree's own root is not one of them).
   const folderIds = (root) => (root?.children || []).flatMap((n) => (n.children ? [n.id, ...folderIds(n)] : []));
 
-  window.__vm.pins = { folderIds, PIN, HOME, TITLE, pinOf, homeOf, titleOf, patched, needsWrite, sameSite, norm, away, plan };
+  // Everything pinned, for the command bar to search: every folder that holds a Favorites or a Pinned folder is a space's
+  // home (see 07-workspaces.js: the sidebar finds a space by its Pinned folder, so only a folder with one is a home).
+  // Returns [{ id, title, url?, kind: "Favorite" | "Pinned", folder, path: [folder names], home: the space's folder id }].
+  const pinIndex = (root) => {
+    const out = [];
+    let home = null;
+    const leaves = (node, kind, path) => {
+      for (const child of node.children || []) {
+        if (child.children) {
+          out.push({ id: child.id, title: child.title || "", kind, folder: true, path, count: child.children.length, home });
+          leaves(child, kind, [...path, child.title || ""]);
+        } else if (child.url) {
+          out.push({ id: child.id, title: child.title || "", url: child.url, kind, folder: false, path, home });
+        }
+      }
+    };
+    const walk = (node) => {
+      for (const child of node.children || []) {
+        if (!child.children) continue;
+        const favs = child.children.find((c) => c.children && c.title === "Favorites");
+        const pinned = child.children.find((c) => c.children && c.title === "Pinned");
+        if (pinned) {
+          home = child.id;
+          if (favs) leaves(favs, "Favorite", []);
+          leaves(pinned, "Pinned", []);
+        } else {
+          walk(child);
+        }
+      }
+    };
+    walk(root || {});
+    return out;
+  };
+
+  // Entries matching what was typed: a title or address containing it (a folder only by name), title-prefix matches first.
+  const matchPins = (entries, text, limit = 6) => {
+    const needle = String(text || "").trim().toLowerCase();
+    if (!needle) return [];
+    const rank = (e) => (e.title.toLowerCase().startsWith(needle) ? 0 : 1);
+    return entries
+      .filter((e) => e.title.toLowerCase().includes(needle) || (!e.folder && (e.url || "").toLowerCase().includes(needle)))
+      .map((e, i) => [e, i])
+      .sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1])
+      .slice(0, limit).map(([e]) => e);
+  };
+
+  window.__vm.pins = { pinIndex, matchPins, folderIds, PIN, HOME, TITLE, pinOf, homeOf, titleOf, patched, needsWrite, sameSite, norm, away, plan };
 })();

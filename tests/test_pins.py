@@ -219,3 +219,79 @@ class CustomTitle(unittest.TestCase):
         cleared = js("JSON.parse(pins.patched(tab, { [pins.TITLE]: undefined }))",
                      tab={**t, "vivExtData": json.dumps(set_)})
         self.assertEqual(cleared, {"workspaceId": 3, "vivarcPin": "p1"})
+
+
+def folder(id, title, children):
+    return {"id": id, "title": title, "children": children}
+
+
+def mark(id, title, url):
+    return {"id": id, "title": title, "url": url}
+
+
+TREE = folder("0", "", [folder("1", "Bar", [
+    folder("10", "Vivarc", [
+        folder("11", "Favorites", [mark("111", "Mail", "https://mail.example.com/")]),
+        folder("12", "Pinned", [
+            mark("121", "Guide", "https://guide.example.com/"),
+            folder("13", "Reading", [mark("131", "Hacker News", "https://news.example.com/"), folder("14", "Deep", [])]),
+        ]),
+    ]),
+    folder("20", "Things", [folder("21", "Pinned", [mark("211", "Hub", "https://hub.example.com/")])]),
+    folder("30", "Other", [mark("301", "Not pinned", "https://x.example.com/")]),
+])])
+
+
+@unittest.skipUnless(shutil.which("node"), "node is needed to test the sidebar's JavaScript")
+class SearchPins(unittest.TestCase):
+    def index(self):
+        return js("pins.pinIndex(tree)", tree=TREE)
+
+    def test_every_favorite_pin_and_folder_of_every_space_is_indexed_with_its_place(self):
+        got = {e["id"]: (e["kind"], e["path"], e["folder"]) for e in self.index()}
+        self.assertEqual(got["111"], ("Favorite", [], False))
+        self.assertEqual(got["121"], ("Pinned", [], False))
+        self.assertEqual(got["131"], ("Pinned", ["Reading"], False))
+        self.assertEqual(got["13"], ("Pinned", [], True))
+        self.assertEqual(got["14"], ("Pinned", ["Reading"], True))
+        self.assertEqual(got["211"], ("Pinned", [], False))
+
+    def test_bookmarks_outside_a_spaces_pinned_and_favorites_are_not_indexed(self):
+        self.assertNotIn("301", [e["id"] for e in self.index()])
+
+    def test_each_entry_knows_the_space_folder_it_belongs_to(self):
+        homes = {e["id"]: e["home"] for e in self.index()}
+        self.assertEqual((homes["111"], homes["131"], homes["211"]), ("10", "10", "20"))
+
+    def test_an_unrelated_favorites_folder_does_not_hide_the_real_spaces(self):
+        tree = folder("0", "", [folder("1", "Bar", [folder("5", "Favorites", [mark("501", "Plain", "https://p.example/")]), TREE["children"][0]["children"][0]])])
+        self.assertIn("131", [e["id"] for e in js("pins.pinIndex(tree)", tree=tree)])
+        self.assertNotIn("501", [e["id"] for e in js("pins.pinIndex(tree)", tree=tree)])
+
+    def test_the_limit_can_be_lifted_so_links_never_crowd_folders_out(self):
+        many = folder("0", "", [folder("1", "Bar", [folder("10", "Vivarc", [folder("12", "Pinned",
+            [mark(str(100 + i), f"Read {i}", f"https://r{i}.example/") for i in range(8)] + [folder("13", "Reading", [])])])])])
+        got = js("pins.matchPins(pins.pinIndex(tree), 'read', Infinity)", tree=many)
+        self.assertIn("13", [e["id"] for e in got])
+
+    def test_a_tree_without_pins_gives_nothing(self):
+        self.assertEqual(js("pins.pinIndex(tree)", tree=folder("0", "", [])), [])
+        self.assertEqual(js("pins.pinIndex(null)"), [])
+
+    def match(self, text, limit=6):
+        return [e["id"] for e in js("pins.matchPins(pins.pinIndex(tree), text, limit)", tree=TREE, text=text, limit=limit)]
+
+    def test_matching_covers_titles_addresses_and_folder_names(self):
+        self.assertEqual(self.match("hack"), ["131"])
+        self.assertEqual(self.match("guide.example"), ["121"])
+        self.assertEqual(self.match("read"), ["13"])
+
+    def test_a_folder_matches_by_name_only(self):
+        self.assertEqual(self.match("example.com"), ["111", "121", "131", "211"])
+
+    def test_title_prefix_matches_come_first_and_the_limit_applies(self):
+        self.assertEqual(self.match("d")[0], "14")  # "Deep" starts with d; Guide and Reading only contain it
+        self.assertEqual(len(self.match("e", 2)), 2)
+
+    def test_nothing_typed_matches_nothing(self):
+        self.assertEqual(self.match("  "), [])

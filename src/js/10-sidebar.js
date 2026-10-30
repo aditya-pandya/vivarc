@@ -81,6 +81,8 @@
     } catch (_) {}
   };
 
+  window.__vm.homeId = () => state.space?.id; // the bookmark folder of the space on screen
+
   // Names an open tab (undefined clears the name); the page's own title is never changed.
   window.__vm.nameTab = async (tab, title) => {
     await writeExt(tab.id, { [pinLinks.TITLE]: title || undefined });
@@ -450,6 +452,7 @@
     const wrap = el("div", "vm-folder");
     const head = el("div", "vm-row vm-folder-head");
     head.style.paddingLeft = `${8 + depth * 20}px`;
+    head.dataset.id = node.id;
     const glyph = el("span", "vm-glyph");
     const title = el("span", "vm-title", node.title || "Untitled");
     head.append(glyph, title);
@@ -1074,6 +1077,26 @@
   };
 
   // Like Arc, opening the command bar scrolls the sidebar down to the new-tab area.
+  // From the command bar: open a pinned folder (and the folders around it) in the sidebar and bring it into view.
+  window.addEventListener("vm-reveal-folder", (e) => {
+    const trail = (nodes, id) => {
+      for (const n of nodes || []) {
+        if (n.id === id) return [n.id];
+        const inner = n.children && trail(n.children, id);
+        if (inner) return [n.id, ...inner];
+      }
+      return null;
+    };
+    const path = trail(state.pinned?.children, e.detail);
+    if (!path) { window.dispatchEvent(new CustomEvent("vm-toast", { detail: "That folder is in another space" })); return; }
+    path.forEach((id) => openFolders.add(id));
+    saveOpen();
+    render();
+    const head = [...panel.querySelectorAll(".vm-folder-head")].find((h) => h.dataset.id === e.detail);
+    head?.scrollIntoView({ block: "center", behavior: "smooth" });
+    head?.classList.add("vm-flash");
+    setTimeout(() => head?.classList.remove("vm-flash"), 1200);
+  });
   window.addEventListener("vm-folders", (e) => {
     for (const id of pinLinks.folderIds(state.pinned)) e.detail === "expand" ? openFolders.add(id) : openFolders.delete(id);
     saveOpen();

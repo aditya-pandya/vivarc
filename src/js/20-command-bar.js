@@ -216,6 +216,9 @@
     } else if (row.type === "engine") {
       input.value = "";
       setMode(row.engine);
+    } else if (row.type === "folder") {
+      close(true);
+      window.dispatchEvent(new CustomEvent("vm-reveal-folder", { detail: row.id }));
     } else if (row.type === "action") {
       close(true);
       Promise.resolve(row.action.run(row.tab)).catch((e) => console.warn("[vivarc] action:", e));
@@ -232,6 +235,9 @@
         const glyph = el("span", "vm-cmd-ico vm-cmd-glyph");
         glyph.innerHTML = ACTION_SVG;
         item.append(glyph, el("span", "vm-cmd-title", row.label));
+      } else if (row.type === "folder") {
+        item.append(el("span", "vm-cmd-ico vm-cmd-folder", "📁"), el("span", "vm-cmd-title", row.label));
+        if (row.sub) item.append(el("span", "vm-cmd-sub", `— ${row.sub}`));
       } else if (row.type === "search" || row.type === "suggest") {
         const glyph = el("span", "vm-cmd-ico vm-cmd-glyph");
         glyph.innerHTML = SEARCH_SVG;
@@ -240,9 +246,9 @@
         item.append(iconFor(row.url, row.favicon), el("span", "vm-cmd-title", row.label));
         if (row.sub) item.append(el("span", "vm-cmd-sub", `— ${row.sub}`));
       }
-      if (row.type === "tab" || row.type === "action" || row.type === "engine") {
+      if (row.type === "tab" || row.type === "action" || row.type === "engine" || row.type === "folder") {
         const hint = el("span", "vm-cmd-hint");
-        hint.append(el("span", null, { tab: "Switch to Tab", action: "Run Action", engine: "Tab" }[row.type]));
+        hint.append(el("span", null, { tab: "Switch to Tab", action: "Run Action", engine: "Tab", folder: "Show in Sidebar" }[row.type]));
         const arrow = el("span", "vm-cmd-arrow");
         arrow.innerHTML = ARROW_SVG;
         hint.append(arrow);
@@ -292,6 +298,7 @@
       const needle = text.toLowerCase();
       const seen = new Set();
       const matches = [];
+      const folders = [];
       const add = (row) => {
         const key = row.url.replace(/#.*$/, "");
         if (seen.has(key)) return;
@@ -302,6 +309,16 @@
         .filter((t) => `${t.title} ${t.url}`.toLowerCase().includes(needle))
         .slice(0, 4)
         .forEach((tab) => add({ type: "tab", tab, url: tab.url, favicon: tab.favIconUrl, label: tab.title || tab.url }));
+      try {
+        const pins = window.__vm.pins;
+        const hits = pins.matchPins(pins.pinIndex((await chrome.bookmarks.getTree())[0]), text, Infinity);
+        hits.filter((p) => !p.folder).slice(0, 4).forEach((p) => add({
+          type: "bookmark", url: p.url, label: p.title || p.url, sub: [p.kind, ...p.path].join(" · ") }));
+        // a folder can only be shown in the sidebar when its space is the one on screen
+        const here = window.__vm.homeId?.();
+        hits.filter((p) => p.folder && p.home === here).slice(0, 2).forEach((p) => folders.push({
+          type: "folder", id: p.id, url: "", label: p.title || "Folder", sub: [p.kind, ...p.path, `${p.count} ${p.count === 1 ? "item" : "items"}`].join(" · ") }));
+      } catch (_) {}
       try {
         (await chrome.bookmarks.search(text)).filter((b) => b.url).slice(0, 3)
           .forEach((b) => add({ type: "bookmark", url: b.url, label: b.title || b.url, sub: hostOf(b.url) }));
@@ -319,7 +336,7 @@
       if (needle.length > 1) out.push(...await matchingActions(needle));
       const keyword = !/\s/.test(text) && engines.find((en) => en.keyword.toLowerCase() === needle);
       if (keyword) out.unshift({ type: "engine", engine: keyword, label: `Search ${keyword.name}` });
-      out.push(...matches.filter((m) => m !== prefix));
+      out.push(...folders, ...matches.filter((m) => m !== prefix));
       if (window.__vm.settings.get("searchSuggestions") && !looksLikeUrl(text) && text.length > 1) {
         try {
           const reply = await fetch(DEFAULT.suggest.replace("{searchTerms}", encodeURIComponent(text)));
