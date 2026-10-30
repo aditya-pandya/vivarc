@@ -5,7 +5,8 @@
   let toast = null;
   let timer = 0;
 
-  const show = (message = "Copied Current URL") => {
+  const show = (detail = "Copied Current URL") => {
+    const { message, action } = typeof detail === "string" ? { message: detail } : detail;
     if (!window.__vm.cssLoaded) return;
     toast?.remove();
     clearTimeout(timer);
@@ -16,14 +17,23 @@
     const icon = document.createElement("span");
     icon.className = "vm-copied-icon";
     icon.innerHTML = SHARE_SVG;
-    toast.append(text, icon);
+    toast.append(text);
+    if (action) {
+      const button = document.createElement("span");
+      button.className = "vm-toast-action";
+      button.textContent = action.label;
+      button.addEventListener("click", () => { clearTimeout(timer); toast?.remove(); toast = null; action.run(); });
+      toast.append(button);
+    } else {
+      toast.append(icon);
+    }
     (document.querySelector("#browser") || document.body).append(toast);
     requestAnimationFrame(() => toast?.classList.add("in"));
     timer = setTimeout(() => {
       toast?.classList.remove("in");
       const gone = toast;
       setTimeout(() => gone?.remove(), 250);
-    }, 2200);
+    }, action ? 6000 : 2200);
   };
 
   window.addEventListener("vm-toast", (e) => show(e.detail || undefined));

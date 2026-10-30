@@ -73,7 +73,7 @@
   // background page (chrome.extension.getBackgroundPage), not on the window the mod runs in, and its push hands out the module
   // list; the module that defines removeWorkspace is found by its source and loaded
   // only if it already ran. Returns (windowId, id) => Promise, or null when Vivaldi no longer looks like this.
-  const findRemover = (chunks) => {
+  const findManager = (chunks) => {
     try {
       let load;
       chunks.push([[Symbol("vivarc")], {}, (require) => { load = require; }]);
@@ -83,15 +83,39 @@
         try { exported = load(id); } catch (_) { continue; }
         for (const key of Object.keys(exported || {})) {
           const manager = exported[key];
-          if (typeof manager?.removeWorkspace === "function") return (windowId, workspaceId) => manager.removeWorkspace(windowId, workspaceId);
+          if (typeof manager?.removeWorkspace === "function") return manager;
         }
       }
     } catch (_) {}
     return null;
   };
+  const findRemover = (chunks) => {
+    const manager = findManager(chunks);
+    return manager ? (windowId, workspaceId) => manager.removeWorkspace(windowId, workspaceId) : null;
+  };
+
+  // The workspace ids in the order they should have after `id` moves next to `targetId` (before it, or after it).
+  // null when nothing would change. The default space is not part of the list and always comes first.
+  const reorder = (list, id, targetId, after) => {
+    const ids = (list || []).map((w) => w.id);
+    if (!ids.includes(id) || id === targetId) return null;
+    const rest = ids.filter((i) => i !== id);
+    const at = rest.indexOf(targetId);
+    rest.splice(at < 0 ? 0 : at + (after ? 1 : 0), 0, id);
+    return rest.every((v, i) => v === ids[i]) ? null : rest;
+  };
+
+  // The workspace next to `id` in the given direction (-1 or 1), or undefined at the end of the list.
+  const neighbour = (list, id, step) => {
+    const i = (list || []).findIndex((w) => w.id === id);
+    return list?.[i + step]?.id;
+  };
+
+  // The folder keeps an "Arc - " prefix it had when its space is renamed.
+  const renamedFolder = (title, name) => (title.startsWith(ARC_PREFIX) ? ARC_PREFIX : "") + name;
 
   const removalLabel = (name, tabCount) =>
     `Delete \u201c${name}\u201d${tabCount ? ` and close its ${tabCount} ${tabCount === 1 ? "tab" : "tabs"}` : ""}`;
 
-  window.__vm.workspaces = { of, tabsIn, activeId, scope, items, recentTab, label, assign, stamp, findRemover, removalLabel, CREATE_HINT };
+  window.__vm.workspaces = { of, tabsIn, activeId, scope, items, recentTab, label, assign, stamp, findManager, findRemover, reorder, neighbour, renamedFolder, removalLabel, CREATE_HINT };
 })();

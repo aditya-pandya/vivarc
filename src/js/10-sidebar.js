@@ -660,11 +660,72 @@
     else await chrome.tabs.create({ active: true, vivExtData: JSON.stringify({ workspaceId: item.id }) });
   };
 
+  const workspaceManager = () => spacesOf.findManager(chrome.extension.getBackgroundPage?.()?.webpackChunkgapp_browser_react);
+  const toast = (message) => window.dispatchEvent(new CustomEvent("vm-toast", { detail: message }));
+
+  // Renaming a space also renames its Pinned folder: the folder is matched to the space by name.
+  const renameSpace = async (item, pill) => {
+    const manager = workspaceManager();
+    if (!manager?.setName) { toast("Could not rename the space. Use Vivaldi's Workspaces button."); return; }
+    const field = el("input", "vm-space-input");
+    field.value = item.name;
+    pill.replaceWith(field);
+    field.focus();
+    field.select();
+    let done = false;
+    const finish = async (commit) => {
+      if (done) return;
+      done = true;
+      const name = field.value.trim();
+      if (commit && name && name !== item.name) {
+        const folder = spacesOf.assign(state.folders, state.workspaces).byId[item.id];
+        madeFolderFor.add(item.id); // the folder is renamed first, so do not let the sidebar make a fresh one for the "new" name
+        if (folder) await chrome.bookmarks.update(folder.id, { title: spacesOf.renamedFolder(folder.title, name) });
+        manager.setName(item.id, name);
+      }
+      refresh(true);
+    };
+    field.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") finish(true);
+      if (e.key === "Escape") finish(false);
+    });
+    field.addEventListener("blur", () => finish(false));
+  };
+
+  const moveSpace = (id, targetId, after) => {
+    if (targetId === undefined) return;
+    const manager = workspaceManager();
+    if (!manager?.setOrder) { toast("Could not reorder the spaces."); return; }
+    const ids = spacesOf.reorder(state.workspaces, id, targetId, after);
+    if (ids) { manager.setOrder(ids); refresh(false); }
+  };
+
   const spacePill = (item) => {
     const pill = el("div", `vm-space-pill${item.id === state.active ? " active" : ""}`, item.emoji || item.name.trim().charAt(0).toUpperCase() || "?");
     pill.title = item.name;
     pill.addEventListener("click", () => switchSpace(item));
-    if (item.id) pill.addEventListener("contextmenu", (e) => showMenu(e, [["Delete Space…", () => confirmDeleteSpace(item, e), true]]));
+    pill.addEventListener("dblclick", () => { if (item.id) renameSpace(item, pill); });
+    if (item.id) {
+      pill.draggable = true;
+      pill.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/vm-space", String(item.id)); e.dataTransfer.effectAllowed = "move"; });
+      pill.addEventListener("contextmenu", (e) => showMenu(e, [
+        ["Rename Space…", () => renameSpace(item, pill)],
+        ["Move Left", () => moveSpace(item.id, spacesOf.neighbour(state.workspaces, item.id, -1), false)],
+        ["Move Right", () => moveSpace(item.id, spacesOf.neighbour(state.workspaces, item.id, 1), true)],
+        [],
+        ["Delete Space…", () => confirmDeleteSpace(item, e), true],
+      ]));
+    }
+    pill.addEventListener("dragover", (e) => { if (e.dataTransfer.types.includes("text/vm-space")) { e.preventDefault(); pill.classList.add("drop-target"); } });
+    pill.addEventListener("dragleave", () => pill.classList.remove("drop-target"));
+    pill.addEventListener("drop", (e) => {
+      pill.classList.remove("drop-target");
+      const id = Number(e.dataTransfer.getData("text/vm-space"));
+      if (!id || id === item.id) return;
+      e.preventDefault();
+      moveSpace(id, item.id, !!item.id && state.workspaces.findIndex((w) => w.id === id) < state.workspaces.findIndex((w) => w.id === item.id));
+    });
     return pill;
   };
 
@@ -741,7 +802,13 @@
     clear.addEventListener("click", async () => {
       if (!open.length) return;
       if (open.length + blank.length === state.tabs.length) await chrome.tabs.create({});
-      chrome.tabs.remove(open.map((t) => t.id));
+      const count = open.length;
+      await chrome.tabs.remove(open.map((t) => t.id));
+      // Closed tabs come back newest first, so restoring as many times as were cleared puts them all back.
+      window.dispatchEvent(new CustomEvent("vm-toast", { detail: {
+        message: `Cleared ${count} ${count === 1 ? "tab" : "tabs"}`,
+        action: { label: "Undo", run: async () => { for (let i = 0; i < count; i++) await chrome.sessions.restore(); } },
+      } }));
     });
     divider.append(clear);
     wireDrop(divider, { accept: isBookmark, onDrop: (_zone, data) => unpin(data) });

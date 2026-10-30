@@ -1,6 +1,8 @@
 # Changelog
 
 ## Unreleased
+- **Undo for Clear.** Clearing the space's open tabs now shows "Cleared N tabs" with an **Undo** button for six seconds; it restores them all.
+- **Rename and reorder spaces.** Double-click a space tile (or right-click, **Rename Space…**) to rename it; its Pinned folder is renamed with it so the pins stay. Drag a tile onto another to reorder, or use **Move Left / Move Right** in the menu. The default space cannot be renamed.
 - **Little windows (experimental).** Right-click a tab, or use the command bar, for **Open in Little Window**: the tab moves to a small popup window, out of the sidebar. **Keep in Main Window** moves it back. A new **Little window for outside links** switch (off by default) sends links opened from other apps to a little window instead of a tab.
 - **Hover card.** Rest the pointer on an open tab and a small card beside it shows the full title, the address, and whether it is playing sound, muted or sleeping. It replaces the browser's plain tooltip and can be turned off with the **Hover card** switch in Vivarc Settings.
 - **Sound indicator.** A tab that is playing audio shows a speaker in its row; click it to mute (it stays as a dimmed muted speaker until you click again). Clicking it does not switch to the tab.

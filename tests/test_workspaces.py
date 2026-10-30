@@ -208,3 +208,38 @@ class DeleteSpace(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(shutil.which("node"), "node is needed to test the sidebar's JavaScript")
+class RenameAndReorder(unittest.TestCase):
+    LIST = [{"id": 1, "name": "A"}, {"id": 2, "name": "B"}, {"id": 3, "name": "C"}]
+
+    def order(self, id, target, after):
+        return js("workspaces.reorder(list, id, target, after)", list=self.LIST, id=id, target=target, after=after)
+
+    def test_a_space_moves_before_or_after_another(self):
+        self.assertEqual(self.order(3, 1, False), [3, 1, 2])
+        self.assertEqual(self.order(1, 3, True), [2, 3, 1])
+        self.assertEqual(self.order(1, 2, True), [2, 1, 3])
+
+    def test_dropping_on_the_default_space_makes_it_first(self):
+        self.assertEqual(self.order(3, 0, False), [3, 1, 2])
+
+    def test_a_move_that_changes_nothing_is_not_applied(self):
+        self.assertIsNone(self.order(1, 2, False))
+        self.assertIsNone(self.order(2, 2, True))
+        self.assertIsNone(self.order(9, 1, False))
+
+    def test_the_neighbour_in_a_direction_stops_at_the_ends(self):
+        self.assertEqual(js("workspaces.neighbour(list, 2, -1)", list=self.LIST), 1)
+        self.assertEqual(js("workspaces.neighbour(list, 2, 1)", list=self.LIST), 3)
+        self.assertIsNone(js("workspaces.neighbour(list, 1, -1)", list=self.LIST))
+        self.assertIsNone(js("workspaces.neighbour(list, 3, 1)", list=self.LIST))
+
+    def test_a_renamed_space_keeps_its_folders_arc_prefix(self):
+        self.assertEqual(js("workspaces.renamedFolder('Arc - Work', 'Play')"), "Arc - Play")
+        self.assertEqual(js("workspaces.renamedFolder('Work', 'Play')"), "Play")
+
+    def test_the_manager_is_found_like_the_remover(self):
+        out = DeleteSpace().fake("const m = workspaces.findManager(chunks); return [typeof m.removeWorkspace, calls];")
+        self.assertEqual(out, ["function", []])
