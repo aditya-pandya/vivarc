@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **Smart tab titles (optional).** **Suggest Title** in a tab's menu and the command bar asks a Claude model for a short name, with an Undo. On demand only; it needs `anthropicKey` in `~/.vivarc/config.json` and sends just the title and the address without query or fragment. See the README.
 - **Split view, like Arc's.** Drag a tab from the sidebar toward the page and drop it on the left, right, top or bottom edge: it tiles with the tab you are looking at, with a preview of where it will go. A split view is drawn in the list as one group with a header and an **Unsplit** button (the tabs stay open); drag one member onto the other to swap their places. All split changes now go through one place (`js/09-split.js`), which also repairs the group a tab leaves.
 - **Undo for Clear.** Clearing the space's open tabs now shows "Cleared N tabs" with an **Undo** button for six seconds; it restores them all.
 - **Rename and reorder spaces.** Double-click a space tile (or right-click, **Rename Space…**) to rename it; its Pinned folder is renamed with it so the pins stay. Drag a tile onto another to reorder, or use **Move Left / Move Right** in the menu. The default space cannot be renamed.

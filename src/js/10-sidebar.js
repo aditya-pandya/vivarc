@@ -81,6 +81,12 @@
     } catch (_) {}
   };
 
+  // Names an open tab (undefined clears the name); the page's own title is never changed.
+  window.__vm.nameTab = async (tab, title) => {
+    await writeExt(tab.id, { [pinLinks.TITLE]: title || undefined });
+    refresh(false);
+  };
+
   // A pin opened from the sidebar remembers where it landed after the site's redirects.
   const recordHome = (tabId, pinId) => {
     const done = () => chrome.tabs.onUpdated.removeListener(onUpdated);
@@ -553,6 +559,7 @@
         [],
       ] : []),
       ["Rename…", () => startTabRename(row.querySelector(".vm-title"), tab)],
+      ["Suggest Title", () => window.__vm.titles?.suggest(tab)],
       ...(custom ? [["Reset Name", async () => { await writeExt(tab.id, { [pinLinks.TITLE]: undefined }); refresh(false); }]] : []),
       ["Open in Little Window", () => window.__vm.little?.open(tab)],
       ["Duplicate Tab", () => chrome.tabs.duplicate(tab.id)],

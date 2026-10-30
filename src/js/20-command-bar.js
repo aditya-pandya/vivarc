@@ -118,6 +118,7 @@
     { label: "Keep in Main Window", words: "little arc popup move back", tab: true, run: async (tab) => {
       if (!(await window.__vm.little?.keep(tab))) toast("Not in a little window");
     } },
+    { label: "Suggest Tab Title", words: "rename name smart ai title shorten", tab: true, run: (tab) => window.__vm.titles?.suggest(tab) },
     { label: "Duplicate Tab", words: "clone copy", tab: true, run: (tab) => chrome.tabs.duplicate(tab.id) },
     { label: "Mute / Unmute Tab", words: "sound audio silence", tab: true, run: (tab) =>
       chrome.tabs.update(tab.id, { muted: !tab.mutedInfo?.muted }) },
