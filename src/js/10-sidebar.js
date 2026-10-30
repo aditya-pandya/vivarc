@@ -250,6 +250,7 @@
         if (!drag) return;
         node.classList.add("dragging");
         document.querySelector("#browser")?.classList.add("vm-dragging");
+        showZones(payload);
       });
     });
     node.addEventListener("dragend", () => {
@@ -508,7 +509,7 @@
     return tile;
   };
 
-  const tabRow = (tab) => {
+  const tabRow = (tab, inGroup = false) => {
     const row = el("div", "vm-row vm-tab");
     row.style.paddingLeft = "8px";
     if (tab.active) row.classList.add("active");
@@ -516,7 +517,7 @@
     const custom = pinLinks.titleOf(tab);
     wireHoverCard(row, tab, custom ?? (tab.title || tab.url));
     row.append(iconEl(tab.url, tab.favIconUrl), el("span", "vm-title", custom ?? (tab.title || tab.url)));
-    if (window.__vm.tilingOf(tab)) row.append(el("span", "vm-split-mark", "◫"));
+    if (!inGroup && window.__vm.tilingOf(tab)) row.append(el("span", "vm-split-mark", "◫"));
     // Like Arc: a speaker on a tab that is playing sound (or was muted), one click toggles mute.
     const muted = !!tab.mutedInfo?.muted;
     if (tab.audible || muted) {
@@ -535,6 +536,8 @@
       onDrop: async (zone, data) => {
         if (data.type === "bm") return unpin(data);
         if (data.tab.id === tab.id) return;
+        const group = window.__vm.tilingOf(tab)?.id;
+        if (group && group === window.__vm.tilingOf(data.tab)?.id) return window.__vm.split.swap(data.tab, tab);
         // the list shows the highest tab index first, so "before" means a higher index
         const below = data.tab.index < tab.index;
         const index = zone === "before" ? (below ? tab.index : tab.index + 1) : (below ? tab.index - 1 : tab.index);
@@ -563,6 +566,57 @@
     ]));
     return row;
   };
+
+  // A split view, drawn as one unit: a small header, then its tabs (each still a full row).
+  const splitGroup = (tabs) => {
+    const box = el("div", "vm-split-group");
+    const head = el("div", "vm-split-head");
+    head.append(el("span", "vm-split-mark", "◫"), el("span", "vm-split-label", "Split view"),
+      actionButton("×", "Unsplit (keeps the tabs open)", () => window.__vm.split.unsplit(tabs[0])));
+    box.append(head, ...tabs.map((t) => tabRow(t, true)));
+    return box;
+  };
+
+  // ---- drag a tab to the page's edge to split it with the tab you are looking at ----
+  let zones = null;
+  const hideZones = () => { zones?.remove(); zones = null; };
+  const pageRect = () => {
+    const view = document.querySelector("#webview-container")?.getBoundingClientRect();
+    if (view && view.width > 100 && view.height > 100) return view;
+    const side = document.querySelector("#tabs-tabbar-container")?.getBoundingClientRect();
+    const onLeft = !side || side.left < window.innerWidth / 2;
+    const left = onLeft && side ? side.right : 0;
+    const width = window.innerWidth - left - (!onLeft && side ? side.width : 0);
+    return { left, top: 0, width, height: window.innerHeight, right: left + width, bottom: window.innerHeight };
+  };
+  const showZones = (payload) => {
+    hideZones();
+    const target = state.tabs.find((t) => t.active);
+    if (payload.type !== "tab" || !target || target.id === payload.tab.id) return;
+    const rect = pageRect();
+    zones = el("div", "vm-split-zones");
+    Object.assign(zones.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+    const preview = el("div", "vm-split-preview");
+    preview.append(el("span", "vm-split-hint", `Split with ${pinLinks.titleOf(target) ?? (target.title || "this tab")}`));
+    zones.append(preview);
+    const edgeAt = (e) => window.__vm.split.edgeOf(e.clientX, e.clientY, zones.getBoundingClientRect());
+    zones.addEventListener("dragover", (e) => {
+      const edge = edgeAt(e);
+      if (!edge) { preview.className = "vm-split-preview"; return; }
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      preview.className = `vm-split-preview on ${edge}`;
+    });
+    zones.addEventListener("dragleave", (e) => { if (e.target === zones) preview.className = "vm-split-preview"; });
+    zones.addEventListener("drop", (e) => {
+      const edge = edgeAt(e);
+      e.preventDefault();
+      hideZones();
+      if (edge) window.__vm.split.join(target.id, payload.tab.id, edge).then((ok) => { if (!ok) window.dispatchEvent(new CustomEvent("vm-toast", { detail: "Could not split these tabs" })); });
+    });
+    (document.querySelector("#browser") || document.body).append(zones);
+  };
+  document.addEventListener("dragend", hideZones, true);
 
   // ---- profile switcher ----
   const openProfile = (path) => vivaldi.runtimePrivate.openNamedProfile(path, (ok) => {
@@ -819,7 +873,9 @@
     fresh.addEventListener("click", () => window.dispatchEvent(new CustomEvent("vm-open-command-bar")));
     wireDrop(fresh, { accept: isBookmark, onDrop: (_zone, data) => unpin(data) });
     body.append(fresh);
-    open.sort((a, b) => b.index - a.index).forEach((t) => body.append(tabRow(t)));
+    for (const item of window.__vm.split.groupTabs(open.sort((a, b) => b.index - a.index))) {
+      body.append(item.group ? splitGroup(item.tabs) : tabRow(item.tab));
+    }
 
     const bar = spaceBar();
     panel.replaceChildren(...(grid ? [grid] : []), body, ...(bar ? [bar] : []));

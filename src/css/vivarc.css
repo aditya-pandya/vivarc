@@ -692,3 +692,40 @@
 .vm-set-ends { display: flex; justify-content: space-between; margin-top: 2px; opacity: 0.5; font-size: 12px; }
 
 #vm-panel .vm-space-pill.drop-target { box-shadow: inset 0 0 0 2px var(--colorHighlightBg, #7b8cff); }
+
+/* Split view: a group in the list, and the drop zones shown over the page while a tab is dragged */
+#vm-panel .vm-split-group {
+  margin: 2px 0;
+  padding: 3px 4px 4px;
+  border-radius: 13px;
+  background-color: color-mix(in srgb, var(--colorFg) 7%, transparent);
+  box-shadow: inset 2px 0 0 var(--colorHighlightBg, #7b8cff);
+}
+#vm-panel .vm-split-head { display: flex; align-items: center; gap: 6px; padding: 2px 6px 2px 8px; font-size: 12px; opacity: 0.7; }
+#vm-panel .vm-split-head:hover .vm-act { display: flex; }
+#vm-panel .vm-split-label { flex: 1; }
+.vm-split-zones { position: fixed; z-index: 99998; }
+.vm-split-preview {
+  position: absolute;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: 14px;
+  border: 2px solid var(--colorHighlightBg, #7b8cff);
+  background-color: color-mix(in srgb, var(--colorHighlightBg, #7b8cff) 28%, transparent);
+  pointer-events: none;
+}
+.vm-split-preview.on { display: flex; }
+.vm-split-preview.left { inset: 6px 50% 6px 6px; }
+.vm-split-preview.right { inset: 6px 6px 6px 50%; }
+.vm-split-preview.top { inset: 6px 6px 50% 6px; }
+.vm-split-preview.bottom { inset: 50% 6px 6px 6px; }
+.vm-split-hint {
+  padding: 6px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--vm-text);
+  background: var(--vm-surface);
+}
