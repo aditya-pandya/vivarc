@@ -439,6 +439,7 @@
   const folderMenu = (node) => (e) => showMenu(e, [
     ["New Nested Folder…", () => newFolder(node)],
     ["Rename…", () => { state.renameId = node.id; refresh(true); }],
+    ["Change Icon…", () => window.__vm.folderIcons?.choose(node.id, node.title, e)],
     [],
     ["Copy All Links", () => copy(leaves(node).map((l) => l.url).join("\n"))],
     ["Open All in New Tabs", () => leaves(node).forEach((l) => chrome.tabs.create({ url: l.url, active: false }))],
@@ -461,7 +462,9 @@
     const sync = () => {
       const open = openFolders.has(node.id);
       wrap.classList.toggle("open", open);
-      glyph.innerHTML = open ? ICON_OPEN : ICON_CLOSED;
+      const emoji = window.__vm.folderIcons?.get(node.id);
+      glyph.classList.toggle("vm-emoji", !!emoji);
+      if (emoji) glyph.textContent = emoji; else glyph.innerHTML = open ? ICON_OPEN : ICON_CLOSED;
     };
     const toggle = () => {
       openFolders.has(node.id) ? openFolders.delete(node.id) : openFolders.add(node.id);
@@ -1117,6 +1120,7 @@
     place();
     window.addEventListener("resize", fitHeight);
     window.__vm.settings.onChange(fitHeight);
+    window.__vm.folderIcons?.onChange?.(() => refresh(false));
     for (const ev of ["onCreated", "onRemoved", "onChanged", "onMoved", "onImportEnded"]) {
       chrome.bookmarks[ev]?.addListener(() => refresh(true));
     }

@@ -146,12 +146,13 @@
     // Merged into what is saved now, not into this window's copy: another window may have colored another space.
     const pick = async (value) => {
       closeColor();
-      const next = { ...(await store.get("spaceTints", {})) };
-      if (value === undefined) delete next[id]; else next[id] = value;
-      spaceTints = next;
+      spaceTints = await store.update("spaceTints", {}, (saved) => {
+        const next = { ...(saved && typeof saved === "object" ? saved : {}) };
+        if (value === undefined) delete next[id]; else next[id] = value;
+        return next;
+      });
       apply();
-      await store.set("spaceTints", next);
-      tintChannel?.postMessage(next);
+      tintChannel?.postMessage(spaceTints);
     };
     PRESETS.forEach(([color], i) => {
       const s = el("button", `vm-theme-swatch${spaceTint(id) === i ? " on" : ""}`);

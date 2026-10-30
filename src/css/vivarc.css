@@ -748,3 +748,21 @@
 #vm-panel .vm-row.vm-flash { animation: vm-flash 1.1s ease-out; }
 @keyframes vm-flash { 0%, 40% { background-color: color-mix(in srgb, var(--colorHighlightBg, #7b8cff) 45%, transparent); } 100% { background-color: transparent; } }
 #vm-cmd .vm-cmd-folder { display: flex; align-items: center; justify-content: center; font-size: 15px; }
+
+#vm-panel .vm-glyph.vm-emoji { width: 20px; justify-content: center; font-size: 16px; line-height: 20px; opacity: 1; }
+.vm-theme-pop.vm-folder-icons { width: 280px; }
+.vm-emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 10px; }
+.vm-emoji-grid button { padding: 4px 0; border: 0; border-radius: 8px; background: transparent; font-size: 19px; line-height: 1.3; }
+.vm-emoji-grid button:hover { background: color-mix(in srgb, var(--vm-text) 14%, transparent); }
+.vm-emoji-grid button.on { background: color-mix(in srgb, var(--vm-text) 22%, transparent); }
+.vm-emoji-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--vm-text) 18%, transparent);
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+.vm-emoji-input.bad { border-color: #ff6b6b; }

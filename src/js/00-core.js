@@ -22,6 +22,19 @@
       q.onsuccess = () => resolve(q.result ?? fallback);
       q.onerror = () => resolve(fallback);
     })).catch(() => fallback),
+    // Read-modify-write in one transaction, so two windows changing the same key cannot overwrite each other's change.
+    update: (key, fallback, change) => dbReady.then((db) => new Promise((resolve) => {
+      const t = db.transaction("kv", "readwrite");
+      const objects = t.objectStore("kv");
+      const q = objects.get(key);
+      q.onsuccess = () => {
+        const next = change(q.result ?? fallback);
+        objects.put(next, key);
+        t.oncomplete = () => resolve(next);
+      };
+      q.onerror = () => resolve(fallback);
+      t.onerror = () => resolve(fallback);
+    })).catch(() => fallback),
     set: (key, value) => dbReady.then((db) => new Promise((resolve) => {
       const t = db.transaction("kv", "readwrite");
       t.objectStore("kv").put(value, key);
