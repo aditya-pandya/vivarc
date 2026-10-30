@@ -183,32 +183,42 @@
   // The sidebar re-renders on every tab update, which replaces the row under a resting pointer without a new
   // mouseenter, so the pointer position is tracked and the row under it is looked up instead of listening per row.
   let card = null, cardTimer = 0, cardRow = null, pointer = null;
-  const hideCard = () => { clearTimeout(cardTimer); card?.remove(); card = null; cardRow = null; };
-  const showCard = (row) => {
+  const hideCard = () => { clearTimeout(cardTimer); cardTimer = 0; card?.remove(); card = null; cardRow = null; };
+  const fillCard = (row) => {
     const { tab, title } = row._vmCard;
-    card = el("div", "vm-card");
-    card.append(el("div", "vm-card-title", title), el("div", "vm-card-url", tab.url || ""));
+    card.replaceChildren(el("div", "vm-card-title", title), el("div", "vm-card-url", tab.url || ""));
     const note = tab.mutedInfo?.muted ? "Muted" : tab.audible ? "Playing sound" : tab.discarded ? "Sleeping" : "";
     if (note) card.append(el("div", "vm-card-note", note));
-    (document.querySelector("#browser") || document.body).append(card);
+    // beside the row: to its right, or to its left when there is no room (a sidebar on the right)
     const r = row.getBoundingClientRect(), c = card.getBoundingClientRect();
-    card.style.left = `${r.right + 8}px`;
+    card.style.left = `${r.right + 8 + c.width > window.innerWidth - 8 ? Math.max(8, r.left - 8 - c.width) : r.right + 8}px`;
     card.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - c.height - 8))}px`;
   };
+  const showCard = (row) => {
+    card = el("div", "vm-card");
+    (document.querySelector("#browser") || document.body).append(card);
+    fillCard(row);
+  };
+  const cardAllowed = () => !!pointer && !drag && !editing && !menu && window.__vm.settings.get("hoverCard");
   const armCard = () => {
-    const row = pointer && !drag && !editing && !menu && window.__vm.settings.get("hoverCard")
-      ? document.elementFromPoint(pointer.x, pointer.y)?.closest(".vm-tab") : null;
+    const row = cardAllowed() ? document.elementFromPoint(pointer.x, pointer.y)?.closest(".vm-tab") : null;
     const same = row && cardRow && row._vmCard.tab.id === cardRow._vmCard.tab.id;
     if (same) {
-      cardRow = row;
+      cardRow = row; // the sidebar redraws on every tab update: carry on with the new row
       if (card && !card.isConnected) card = null;
+      if (card) fillCard(row);
+      else if (!cardTimer) cardTimer = setTimeout(fire, 600);
       return;
     }
     hideCard();
     if (!row) return;
     cardRow = row;
-    cardTimer = setTimeout(() => { if (cardRow?.isConnected) showCard(cardRow); }, 600);
+    cardTimer = setTimeout(fire, 600);
   };
+  function fire() {
+    cardTimer = 0;
+    if (cardRow?.isConnected && cardAllowed()) showCard(cardRow);
+  }
   document.addEventListener("mousemove", (e) => { pointer = { x: e.clientX, y: e.clientY }; armCard(); }, true);
   for (const ev of ["mousedown", "contextmenu", "dragstart", "wheel"]) document.addEventListener(ev, hideCard, true);
   document.addEventListener("mouseleave", () => { pointer = null; hideCard(); });
@@ -399,6 +409,24 @@
     ]);
   };
 
+  // Like Arc: a speaker on a tab that is playing sound (or was muted); one click toggles mute. The state is read at the
+  // click, not at render time, so quick repeated clicks alternate.
+  const audioButton = (tab) => {
+    const muted = !!tab?.mutedInfo?.muted;
+    if (!tab || !(tab.audible || muted)) return null;
+    const speaker = el("span", `vm-audio${muted ? " muted" : ""}`, muted ? "🔇" : "🔊");
+    speaker.title = muted ? "Unmute tab" : "Mute tab";
+    speaker.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        const now = await chrome.tabs.get(tab.id);
+        await chrome.tabs.update(tab.id, { muted: !now.mutedInfo?.muted });
+      } catch (_) {}
+    });
+    speaker.addEventListener("dblclick", (e) => e.stopPropagation());
+    return speaker;
+  };
+
   const pinnedLink = (node, depth) => {
     const row = el("div", "vm-row vm-link");
     row.style.paddingLeft = `${8 + depth * 20}px`;
@@ -411,6 +439,8 @@
     if (away) row.append(el("span", "vm-away-mark", "/"));
     const title = el("span", "vm-title", away ? (tab.title || tab.url) : (node.title || node.url));
     row.append(title);
+    const speaker = audioButton(tab);
+    if (speaker) row.append(speaker);
     if (away) {
       const back = actionButton("↩", "Back to pinned page", () => backToPin(tab, node));
       back.classList.add("vm-back"); // shown without hovering, like Arc's arrow on a pinned tab that has moved on
@@ -506,6 +536,8 @@
     if (tab?.active) tile.classList.add("active");
     if (away) tile.classList.add("away");
     tile.append(iconEl(node.url, away ? undefined : tab?.favIconUrl));
+    const speaker = audioButton(tab);
+    if (speaker) { speaker.classList.add("vm-audio-tile"); tile.append(speaker); }
     if (away) {
       const back = actionButton("↩", "Back to favorite page", () => backToPin(tab, node));
       back.classList.add("vm-back");
@@ -539,15 +571,8 @@
     wireHoverCard(row, tab, custom ?? (tab.title || tab.url));
     row.append(iconEl(tab.url, tab.favIconUrl), el("span", "vm-title", custom ?? (tab.title || tab.url)));
     if (!inGroup && window.__vm.tilingOf(tab)) row.append(el("span", "vm-split-mark", "◫"));
-    // Like Arc: a speaker on a tab that is playing sound (or was muted), one click toggles mute.
-    const muted = !!tab.mutedInfo?.muted;
-    if (tab.audible || muted) {
-      const speaker = el("span", `vm-audio${muted ? " muted" : ""}`, muted ? "🔇" : "🔊");
-      speaker.title = muted ? "Unmute tab" : "Mute tab";
-      speaker.addEventListener("click", (e) => { e.stopPropagation(); chrome.tabs.update(tab.id, { muted: !muted }); });
-      speaker.addEventListener("dblclick", (e) => e.stopPropagation());
-      row.append(speaker);
-    }
+    const speaker = audioButton(tab);
+    if (speaker) row.append(speaker);
     row.append(actionButton("×", "Close tab", () => chrome.tabs.remove(tab.id)));
     row.addEventListener("click", () => chrome.tabs.update(tab.id, { active: true }));
     row.addEventListener("dblclick", () => { if (!row.querySelector(".vm-rename")) startTabRename(row.querySelector(".vm-title"), tab); });
@@ -746,18 +771,24 @@
     const field = el("input", "vm-space-input");
     field.value = item.name;
     pill.replaceWith(field);
+    editing = true; // background refreshes would replace the field while the name is typed
     field.focus();
     field.select();
     let done = false;
     const finish = async (commit) => {
       if (done) return;
       done = true;
+      editing = false;
       const name = field.value.trim();
       if (commit && name && name !== item.name) {
-        const folder = spacesOf.assign(state.folders, state.workspaces).byId[item.id];
-        madeFolderFor.add(item.id); // the folder is renamed first, so do not let the sidebar make a fresh one for the "new" name
-        if (folder) await chrome.bookmarks.update(folder.id, { title: spacesOf.renamedFolder(folder.title, name) });
-        manager.setName(item.id, name);
+        if (spacesOf.nameTaken(state.workspaces, item.id, name, state.defaultSpace ? spacesOf.label(state.defaultSpace) : "Home")) {
+          toast("Another space already has that name");
+        } else {
+          const folder = spacesOf.assign(state.folders, state.workspaces).byId[item.id];
+          madeFolderFor.add(item.id); // the folder is renamed first, so do not let the sidebar make a fresh one for the "new" name
+          if (folder) await chrome.bookmarks.update(folder.id, { title: spacesOf.renamedFolder(folder.title, name) });
+          manager.setName(item.id, name);
+        }
       }
       refresh(true);
     };
@@ -884,12 +915,25 @@
       if (!open.length) return;
       if (open.length + blank.length === state.tabs.length) await chrome.tabs.create({});
       const count = open.length;
+      const cleared = open.map((t) => t.url);
       await chrome.tabs.remove(open.map((t) => t.id));
-      // Closed tabs come back newest first, so restoring as many times as were cleared puts them all back.
-      window.dispatchEvent(new CustomEvent("vm-toast", { detail: {
-        message: `Cleared ${count} ${count === 1 ? "tab" : "tabs"}`,
-        action: { label: "Undo", run: async () => { for (let i = 0; i < count; i++) await chrome.sessions.restore(); } },
-      } }));
+      // Undo restores those very tabs by session id; without the session list it falls back to "the last N closed".
+      let sessions = [];
+      try {
+        const recent = await chrome.sessions.getRecentlyClosed({ maxResults: Math.min(25, count + 10) });
+        const wanted = [...cleared];
+        for (const item of recent) {
+          const at = item.tab ? wanted.indexOf(item.tab.url) : -1;
+          if (at < 0) continue;
+          wanted.splice(at, 1);
+          sessions.push(item.tab.sessionId);
+        }
+      } catch (_) { sessions = []; }
+      const undo = async () => {
+        if (sessions.length) for (const id of sessions) await chrome.sessions.restore(id);
+        else for (let i = 0; i < count; i++) await chrome.sessions.restore();
+      };
+      window.dispatchEvent(new CustomEvent("vm-toast", { detail: { message: `Cleared ${count} ${count === 1 ? "tab" : "tabs"}`, action: { label: "Undo", run: undo } } }));
     });
     divider.append(clear);
     wireDrop(divider, { accept: isBookmark, onDrop: (_zone, data) => unpin(data) });
@@ -1029,6 +1073,7 @@
     timer = setTimeout(async () => {
       if (drag || editing) { refreshAfterDrag = true; return; } // re-rendering would detach the node being dragged or edited
       refreshAfterDrag = false;
+      const held = () => { if (drag || editing) { refreshAfterDrag = true; wantBookmarks ||= bookmarks; return true; } return false; };
       const bookmarks = wantBookmarks || !state.defaultSpace;
       wantBookmarks = false;
       try {
@@ -1037,6 +1082,7 @@
         await applySpace();
         bindTabs();
         cacheIcons();
+        if (held()) return; // a drag or an edit began while the lists were loading: keep what is on screen
         render();
         failures = 0;
       } catch (e) {
@@ -1120,6 +1166,7 @@
     place();
     window.addEventListener("resize", fitHeight);
     window.__vm.settings.onChange(fitHeight);
+    window.__vm.settings.onChange(() => { if (!window.__vm.settings.get("hoverCard")) hideCard(); });
     window.__vm.folderIcons?.onChange?.(() => refresh(false));
     for (const ev of ["onCreated", "onRemoved", "onChanged", "onMoved", "onImportEnded"]) {
       chrome.bookmarks[ev]?.addListener(() => refresh(true));

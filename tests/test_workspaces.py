@@ -261,3 +261,22 @@ class SpaceTint(unittest.TestCase):
     def test_a_saved_value_that_is_not_a_preset_is_ignored(self):
         for bad in (9, -1, 2.5, "3", None):
             self.assertIsNone(self.tint({"7": bad}, 7))
+
+
+@unittest.skipUnless(shutil.which("node"), "node is needed to test the sidebar's JavaScript")
+class SpaceNames(unittest.TestCase):
+    LIST = [{"id": 1, "name": "Work"}, {"id": 2, "name": "Play"}]
+
+    def taken(self, id, name):
+        return js("workspaces.nameTaken(list, id, name, 'Home')", list=self.LIST, id=id, name=name)
+
+    def test_a_name_another_space_has_is_taken_however_it_is_cased(self):
+        self.assertTrue(self.taken(1, "play"))
+        self.assertTrue(self.taken(2, "  WORK "))
+
+    def test_the_default_spaces_name_is_taken_too(self):
+        self.assertTrue(self.taken(1, "home"))
+
+    def test_a_space_may_keep_or_change_its_own_name(self):
+        self.assertFalse(self.taken(1, "Work"))
+        self.assertFalse(self.taken(1, "Job"))

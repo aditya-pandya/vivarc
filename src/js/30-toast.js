@@ -19,7 +19,7 @@
     icon.innerHTML = SHARE_SVG;
     toast.append(text);
     if (action) {
-      const button = document.createElement("span");
+      const button = document.createElement("button");
       button.className = "vm-toast-action";
       button.textContent = action.label;
       button.addEventListener("click", () => { clearTimeout(timer); toast?.remove(); toast = null; action.run(); });

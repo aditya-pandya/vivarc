@@ -6,27 +6,32 @@
 
   const isWeb = (url) => /^https?:\/\//i.test(url || "");
 
-  // A tab Vivaldi opened for a link from another app: a web address, no opener tab, and Vivaldi was not the focused
-  // app when it appeared. A tab opened from a page has an opener, one from Cmd+T starts on the new tab page.
+  // A tab Vivaldi opened for a link from another app: a web address, no opener tab, brought to the front, and Vivaldi
+  // was not the focused app when it appeared. A tab opened from a page has an opener, one from Cmd+T starts on the new
+  // tab page, and one opened quietly in the background (an extension, a restored session) is not active.
   const isExternalLink = (tab, appFocused) =>
-    !appFocused && !!tab && tab.openerTabId === undefined && isWeb(tab.pendingUrl || tab.url);
+    !appFocused && !!tab && tab.active !== false && tab.openerTabId === undefined && isWeb(tab.pendingUrl || tab.url);
 
   window.__vm.little = { SIZE, isExternalLink };
   if (typeof chrome === "undefined" || !chrome.windows) return;
 
   const isLittle = (win) => win?.type === "popup";
 
-  // The main window of this profile: the one a kept tab goes back to.
-  const mainWindow = async (excludeId) => {
+  // Where each little window's tab came from, so Keep can put it back there (kept in memory only).
+  const origins = new Map();
+
+  // The window a kept tab goes back to: the one it came from if that is still open, else the focused or first normal one.
+  const mainWindow = async (excludeId, tab) => {
     const all = await chrome.windows.getAll({ windowTypes: ["normal"] });
     const mine = all.filter((w) => w.id !== excludeId && !w.incognito);
-    return mine.find((w) => w.focused) || mine[0] || null;
+    return mine.find((w) => w.id === origins.get(tab?.id)) || mine.find((w) => w.focused) || mine[0] || null;
   };
 
   const open = async (tab) => {
     if (!tab) return false;
     const current = await chrome.windows.get(tab.windowId);
     if (isLittle(current)) return false;
+    origins.set(tab.id, tab.windowId);
     await chrome.windows.create({ tabId: tab.id, type: "popup", focused: true, ...SIZE });
     return true;
   };
@@ -35,8 +40,10 @@
     if (!tab) return false;
     const current = await chrome.windows.get(tab.windowId);
     if (!isLittle(current)) return false;
-    const main = await mainWindow(current.id);
-    if (!main) return false;
+    const main = await mainWindow(current.id, tab);
+    origins.delete(tab.id);
+    // With no normal window left, the tab becomes the first tab of a new one.
+    if (!main) { await chrome.windows.create({ tabId: tab.id, type: "normal", focused: true }); return true; }
     await chrome.tabs.move(tab.id, { windowId: main.id, index: -1 });
     await chrome.tabs.update(tab.id, { active: true });
     await chrome.windows.update(main.id, { focused: true });

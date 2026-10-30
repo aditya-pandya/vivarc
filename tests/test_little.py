@@ -25,3 +25,7 @@ class ExternalLink(unittest.TestCase):
     def test_the_new_tab_page_and_internal_pages_are_not(self):
         self.assertFalse(external({"id": 1, "url": "vivaldi://newtab/"}))
         self.assertFalse(external({"id": 1, "url": "chrome://settings"}))
+
+    def test_a_tab_opened_quietly_in_the_background_is_not(self):
+        self.assertFalse(external({"id": 1, "url": "https://example.com/a", "active": False}))
+        self.assertTrue(external({"id": 1, "url": "https://example.com/a", "active": True}))

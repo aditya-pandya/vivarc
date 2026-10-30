@@ -384,6 +384,10 @@
 }
 #vm-copied.in { opacity: 1; transform: none; }
 #vm-copied .vm-toast-action {
+  pointer-events: auto; /* the toast itself ignores the pointer; its Undo button must not */
+  border: 0;
+  font: inherit;
+  color: inherit;
   padding: 6px 12px;
   border-radius: 8px;
   cursor: pointer;
@@ -766,3 +770,4 @@
   font: inherit;
 }
 .vm-emoji-input.bad { border-color: #ff6b6b; }
+#vm-panel .vm-fav .vm-audio-tile { position: absolute; top: 3px; left: 3px; padding: 2px; font-size: 11px; }
