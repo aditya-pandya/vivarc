@@ -194,3 +194,28 @@ class Folders(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(shutil.which("node"), "node is needed to test the sidebar's JavaScript")
+class CustomTitle(unittest.TestCase):
+    def title(self, ext):
+        return js("pins.titleOf(tab)", tab=tab(1, "https://example.com/", ext=ext))
+
+    def test_a_tab_without_a_custom_name_has_none(self):
+        self.assertIsNone(self.title(None))
+        self.assertIsNone(self.title({"vivarcPin": "p1"}))
+
+    def test_the_name_the_user_gave_is_returned(self):
+        self.assertEqual(self.title({"vivarcTitle": "Work inbox"}), "Work inbox")
+
+    def test_a_blank_or_non_text_name_counts_as_none(self):
+        self.assertIsNone(self.title({"vivarcTitle": "   "}))
+        self.assertIsNone(self.title({"vivarcTitle": 7}))
+
+    def test_setting_and_clearing_the_name_keeps_vivaldis_own_keys(self):
+        t = tab(1, "https://example.com/", ext={"workspaceId": 3, "vivarcPin": "p1"})
+        set_ = js("JSON.parse(pins.patched(tab, { [pins.TITLE]: 'Inbox' }))", tab=t)
+        self.assertEqual(set_, {"workspaceId": 3, "vivarcPin": "p1", "vivarcTitle": "Inbox"})
+        cleared = js("JSON.parse(pins.patched(tab, { [pins.TITLE]: undefined }))",
+                     tab={**t, "vivExtData": json.dumps(set_)})
+        self.assertEqual(cleared, {"workspaceId": 3, "vivarcPin": "p1"})

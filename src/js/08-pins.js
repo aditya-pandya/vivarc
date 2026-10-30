@@ -1,16 +1,22 @@
 // Which tab belongs to which pin or favorite. Like Arc, a tab stays on its pin when it navigates elsewhere.
 // The link is kept in the tab's vivExtData JSON (Vivaldi saves it with the session), next to Vivaldi's own keys:
 // vivarcPin = the bookmark id, vivarcHome = where the pin landed after its redirects (so a site that
-// redirects off its root is not shown as "away" the moment it opens).
+// redirects off its root is not shown as "away" the moment it opens), vivarcTitle = a name the user gave the tab
+// (double-click it in the sidebar), shown in place of the page title until it is cleared.
 (() => {
   const PIN = "vivarcPin";
   const HOME = "vivarcHome";
+  const TITLE = "vivarcTitle";
 
   const read = (tab) => {
     try { return JSON.parse(tab?.vivExtData || "{}") || {}; } catch (_) { return {}; }
   };
   const pinOf = (tab) => read(tab)[PIN];
   const homeOf = (tab) => read(tab)[HOME];
+  const titleOf = (tab) => {
+    const title = read(tab)[TITLE];
+    return typeof title === "string" && title.trim() ? title : undefined;
+  };
 
   // A patch value of undefined removes the key.
   const patched = (tab, patch) => JSON.stringify({ ...read(tab), ...patch });
@@ -90,5 +96,5 @@
   // Every folder under a Pinned tree, at any depth (the tree's own root is not one of them).
   const folderIds = (root) => (root?.children || []).flatMap((n) => (n.children ? [n.id, ...folderIds(n)] : []));
 
-  window.__vm.pins = { folderIds, PIN, HOME, pinOf, homeOf, patched, needsWrite, sameSite, norm, away, plan };
+  window.__vm.pins = { folderIds, PIN, HOME, TITLE, pinOf, homeOf, titleOf, patched, needsWrite, sameSite, norm, away, plan };
 })();

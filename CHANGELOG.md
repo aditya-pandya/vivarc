@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+- **Double-click to rename.** Double-click a favorite, a pinned link, a folder or an open tab to rename it in place (Enter saves, Escape cancels). An open tab keeps the name you give it until you clear it (empty the field, or right-click and pick **Reset Name**); the page's own title is never changed. The second click of a double-click no longer opens a second tab from a pin, and the sidebar no longer re-renders under a name you are typing.
+- **Arc-sized favorites.** Tiles are smaller and denser, like Arc's (about four to a row instead of three, with an 18px icon). A new **Favorites tile size** slider in Vivarc Settings goes from compact to large.
+- Fix: the switches in Vivarc Settings showed as Vivaldi's small checkboxes. Vivaldi's own checkbox styles outranked Vivarc's, so the switch rules are now scoped to win over them.
+- Rows are a little taller with a slightly larger font, the selected row is a softly lifted pill, and the space header shows the space's emoji.
+
 ## 0.1.16 - 2026-10-28
 - **Uninstall Vivarc**: the installer now also leaves `~/Applications/Uninstall Vivarc.app` next to Update Vivarc. It quits Vivaldi, restores your settings, removes Vivarc and reopens Vivaldi, so removing or reinstalling no longer needs Terminal.
 - Docs: the README and the guide page now say that a sidebar hidden with Cmd+S slides back in when you move the pointer to the left edge of the window.

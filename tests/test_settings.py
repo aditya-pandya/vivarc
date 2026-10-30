@@ -15,7 +15,7 @@ def resolve(config=None, saved=None):
 @unittest.skipUnless(shutil.which("node"), "node is needed to test the sidebar's JavaScript")
 class Resolve(unittest.TestCase):
     def test_without_anything_saved_the_defaults_apply(self):
-        self.assertEqual(resolve(), {"glass": False, "glassOpacity": 55, "spaceBar": True, "compactBottomBar": True, "searchSuggestions": True})
+        self.assertEqual(resolve(), {"glass": False, "glassOpacity": 55, "favSize": 60, "spaceBar": True, "compactBottomBar": True, "searchSuggestions": True})
 
     def test_the_install_config_sets_the_starting_point(self):
         values = resolve(config={"compactBottomBar": False, "suggestions": "off"})
@@ -47,8 +47,20 @@ class GlassOpacity(unittest.TestCase):
         self.assertEqual(resolve(saved={"glassOpacity": True})["glassOpacity"], 55)
 
     def test_the_opacity_becomes_a_css_variable_in_percent(self):
-        out = js("settings.vars(settings.SCHEMA, values)", values={"glassOpacity": 72})
-        self.assertEqual(out, {"--vm-glass-opacity": "72%"})
+        out = js("settings.vars(settings.SCHEMA, values)", values={"glassOpacity": 72, "favSize": 60})
+        self.assertEqual(out["--vm-glass-opacity"], "72%")
+
+
+@unittest.skipUnless(shutil.which("node"), "node is needed to test the sidebar's JavaScript")
+class FavoritesSize(unittest.TestCase):
+    def test_a_saved_size_is_used_and_becomes_a_css_variable_in_pixels(self):
+        self.assertEqual(resolve(saved={"favSize": 52})["favSize"], 52)
+        out = js("settings.vars(settings.SCHEMA, values)", values={"glassOpacity": 55, "favSize": 52})
+        self.assertEqual(out["--vm-fav-min"], "52px")
+
+    def test_a_size_outside_the_range_is_pulled_back_in(self):
+        self.assertEqual(resolve(saved={"favSize": 10})["favSize"], 44)
+        self.assertEqual(resolve(saved={"favSize": 300})["favSize"], 96)
 
 
 @unittest.skipUnless(shutil.which("node"), "node is needed to test the sidebar's JavaScript")

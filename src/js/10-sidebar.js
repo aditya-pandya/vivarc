@@ -195,6 +195,7 @@
 
   // ---- drag and drop ----
   let drag = null;
+  let editing = false; // a title field is open: re-rendering would throw it away mid-typing
   let refreshAfterDrag = false;
   const clearDrop = () => {
     for (const n of panel?.querySelectorAll(".drop-before, .drop-after, .drop-into") ?? []) {
@@ -279,18 +280,22 @@
     return b;
   };
 
-  const editTitle = (field, node, cleanup = () => {}) => {
-    field.value = node.title;
+  // Inline title editing: Enter or blur saves, Escape cancels. `save` gets the trimmed text; an empty one only
+  // counts when `allowEmpty` (clearing a tab's custom name). Re-renders are held while the field is open.
+  const editField = (field, initial, save, { allowEmpty = false, cleanup = () => {} } = {}) => {
+    field.value = initial;
     field.focus();
     field.select();
+    editing = true;
     let done = false;
     const finish = (commit) => {
       if (done) return;
       done = true;
+      editing = false;
       cleanup();
       const title = field.value.trim();
-      if (commit && title && title !== node.title) chrome.bookmarks.update(node.id, { title });
-      else refresh(true);
+      if (commit && title !== initial && (title || allowEmpty)) save(title);
+      else refresh(true); // put the title back where the field was
     };
     field.addEventListener("keydown", (e) => {
       e.stopPropagation();
@@ -299,11 +304,23 @@
     });
     field.addEventListener("blur", () => finish(true));
     field.addEventListener("click", (e) => e.stopPropagation());
+    field.addEventListener("dblclick", (e) => e.stopPropagation());
   };
+  const editTitle = (field, node, options) =>
+    editField(field, node.title, (title) => chrome.bookmarks.update(node.id, { title }), options);
   const startRename = (titleEl, node) => {
     const field = el("input", "vm-rename");
     titleEl.replaceWith(field);
     editTitle(field, node);
+  };
+  // An open tab keeps its custom name in vivExtData; clearing the field (or typing the page's own title) goes back to the page title.
+  const startTabRename = (titleEl, tab) => {
+    const field = el("input", "vm-rename");
+    titleEl.replaceWith(field);
+    editField(field, pinLinks.titleOf(tab) ?? (tab.title || ""), async (title) => {
+      await writeExt(tab.id, { [pinLinks.TITLE]: title && title !== tab.title ? title : undefined });
+      refresh(false);
+    }, { allowEmpty: true });
   };
   // A favorite tile only shows its icon, so its name is edited in a field floating under its row of the grid.
   const renameFavorite = (tile, node) => {
@@ -315,7 +332,7 @@
     field.style.top = `${tile.getBoundingClientRect().bottom + 6}px`;
     field.style.width = `${box.width}px`;
     (document.querySelector("#browser") || document.body).append(field);
-    editTitle(field, node, () => field.remove());
+    editTitle(field, node, { cleanup: () => field.remove() });
   };
 
   const bookmarkMenu = (node, isFav) => (e) => {
@@ -354,7 +371,8 @@
     if (!tab) row.append(actionButton("×", "Remove from Pinned", () => discard(node)));
     else if (away) row.append(actionButton("–", "Separate From Pinned Tab", () => separate(tab, node)));
     else row.append(actionButton("–", "Close tab", () => chrome.tabs.remove(tab.id)));
-    row.addEventListener("click", () => focusOrOpen(node));
+    row.addEventListener("click", (e) => { if (e.detail < 2) focusOrOpen(node); });
+    row.addEventListener("dblclick", () => { if (!row.querySelector(".vm-rename")) startRename(row.querySelector(".vm-title"), node); });
     row.addEventListener("contextmenu", bookmarkMenu(node, false));
     wireDrag(row, { type: "bm", node, url: node.url });
     wireDrop(row, {
@@ -396,11 +414,14 @@
       wrap.classList.toggle("open", open);
       glyph.innerHTML = open ? ICON_OPEN : ICON_CLOSED;
     };
-    head.addEventListener("click", () => {
+    const toggle = () => {
       openFolders.has(node.id) ? openFolders.delete(node.id) : openFolders.add(node.id);
       saveOpen();
       sync();
-    });
+    };
+    head.addEventListener("click", (e) => { if (e.detail < 2) toggle(); });
+    // the first click of a double-click already toggled the folder: put it back, then rename
+    head.addEventListener("dblclick", () => { toggle(); startRename(head.querySelector(".vm-title"), node); });
     head.addEventListener("contextmenu", folderMenu(node));
     wireDrag(head, { type: "bm", node, url: "" });
     wireDrop(head, {
@@ -433,7 +454,8 @@
     if (tab?.active) tile.classList.add("active");
     if (away) tile.classList.add("away");
     tile.append(iconEl(node.url, away ? undefined : tab?.favIconUrl));
-    tile.addEventListener("click", () => focusOrOpen(node));
+    tile.addEventListener("click", (e) => { if (e.detail < 2) focusOrOpen(node); });
+    tile.addEventListener("dblclick", () => renameFavorite(tile, node));
     tile.addEventListener("contextmenu", bookmarkMenu(node, true));
     wireDrag(tile, { type: "bm", node, url: node.url });
     wireDrop(tile, {
@@ -457,10 +479,12 @@
     if (tab.active) row.classList.add("active");
     if (tab.discarded) row.classList.add("discarded");
     row.title = tab.url;
-    row.append(iconEl(tab.url, tab.favIconUrl), el("span", "vm-title", tab.title || tab.url));
+    const custom = pinLinks.titleOf(tab);
+    row.append(iconEl(tab.url, tab.favIconUrl), el("span", "vm-title", custom ?? (tab.title || tab.url)));
     if (window.__vm.tilingOf(tab)) row.append(el("span", "vm-split-mark", "◫"));
     row.append(actionButton("×", "Close tab", () => chrome.tabs.remove(tab.id)));
     row.addEventListener("click", () => chrome.tabs.update(tab.id, { active: true }));
+    row.addEventListener("dblclick", () => { if (!row.querySelector(".vm-rename")) startTabRename(row.querySelector(".vm-title"), tab); });
     row.addEventListener("auxclick", (e) => { if (e.button === 1) chrome.tabs.remove(tab.id); });
     wireDrag(row, { type: "tab", tab, url: tab.url });
     wireDrop(row, {
@@ -481,6 +505,8 @@
           parentId: (await ensureFolder("Favorites")).id, title: tab.title, url: tab.url })],
         [],
       ] : []),
+      ["Rename…", () => startTabRename(row.querySelector(".vm-title"), tab)],
+      ...(custom ? [["Reset Name", async () => { await writeExt(tab.id, { [pinLinks.TITLE]: undefined }); refresh(false); }]] : []),
       ["Duplicate Tab", () => chrome.tabs.duplicate(tab.id)],
       ["Copy Link", () => copy(tab.url)],
       [],
@@ -648,7 +674,11 @@
     }
     if (state.space) {
       const label = el("div", "vm-space");
-      label.append(el("span", "vm-space-name", spacesOf.label(state.space)));
+      const emoji = state.workspaces.find((w) => w.id === state.active)?.emoji;
+      const name = el("span", "vm-space-name");
+      if (emoji) name.append(el("span", "vm-space-emoji", emoji));
+      name.append(el("span", "vm-space-text", spacesOf.label(state.space)));
+      label.append(name);
       label.append(actionButton("🎨", "Edit theme", () => window.dispatchEvent(new CustomEvent("vm-open-theme"))));
       wireDrop(label, {
         onDrop: async (_zone, data) => insertPinned(data, (state.pinned || await ensureFolder("Pinned")).id, 0),
@@ -800,7 +830,7 @@
     wantBookmarks ||= !!withBookmarks;
     clearTimeout(timer);
     timer = setTimeout(async () => {
-      if (drag) { refreshAfterDrag = true; return; } // re-rendering would detach the node being dragged
+      if (drag || editing) { refreshAfterDrag = true; return; } // re-rendering would detach the node being dragged or edited
       refreshAfterDrag = false;
       const bookmarks = wantBookmarks || !state.defaultSpace;
       wantBookmarks = false;
