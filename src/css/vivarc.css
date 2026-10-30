@@ -476,6 +476,9 @@
   border-radius: 50%;
   background-color: var(--colorHighlightBg, #7b8cff);
 }
+#vm-panel .vm-audio { flex: none; font-size: 12px; line-height: 1; padding: 3px; border-radius: 6px; cursor: pointer; opacity: 0.85; }
+#vm-panel .vm-audio:hover { opacity: 1; background-color: color-mix(in srgb, var(--colorFg) 18%, transparent); }
+#vm-panel .vm-audio.muted { opacity: 0.5; }
 #vm-panel .vm-split-mark { flex: none; opacity: 0.55; font-size: 14px; }
 
 #browser.vm-on .vm-spaces { flex: none; display: flex; align-items: center; gap: 7px; margin-right: 8px; }

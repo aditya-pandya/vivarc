@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- **Sound indicator.** A tab that is playing audio shows a speaker in its row; click it to mute (it stays as a dimmed muted speaker until you click again). Clicking it does not switch to the tab.
 - **Double-click to rename.** Double-click a favorite, a pinned link, a folder or an open tab to rename it in place (Enter saves, Escape cancels). An open tab keeps the name you give it until you clear it (empty the field, or right-click and pick **Reset Name**); the page's own title is never changed. The second click of a double-click no longer opens a second tab from a pin, and the sidebar no longer re-renders under a name you are typing.
 - **Arc-sized favorites.** Tiles are smaller and denser, like Arc's (about four to a row instead of three, with an 18px icon). A new **Favorites tile size** slider in Vivarc Settings goes from compact to large.
 - Fix: the switches in Vivarc Settings showed as Vivaldi's small checkboxes. Vivaldi's own checkbox styles outranked Vivarc's, so the switch rules are now scoped to win over them.

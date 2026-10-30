@@ -482,6 +482,15 @@
     const custom = pinLinks.titleOf(tab);
     row.append(iconEl(tab.url, tab.favIconUrl), el("span", "vm-title", custom ?? (tab.title || tab.url)));
     if (window.__vm.tilingOf(tab)) row.append(el("span", "vm-split-mark", "◫"));
+    // Like Arc: a speaker on a tab that is playing sound (or was muted), one click toggles mute.
+    const muted = !!tab.mutedInfo?.muted;
+    if (tab.audible || muted) {
+      const speaker = el("span", `vm-audio${muted ? " muted" : ""}`, muted ? "🔇" : "🔊");
+      speaker.title = muted ? "Unmute tab" : "Mute tab";
+      speaker.addEventListener("click", (e) => { e.stopPropagation(); chrome.tabs.update(tab.id, { muted: !muted }); });
+      speaker.addEventListener("dblclick", (e) => e.stopPropagation());
+      row.append(speaker);
+    }
     row.append(actionButton("×", "Close tab", () => chrome.tabs.remove(tab.id)));
     row.addEventListener("click", () => chrome.tabs.update(tab.id, { active: true }));
     row.addEventListener("dblclick", () => { if (!row.querySelector(".vm-rename")) startTabRename(row.querySelector(".vm-title"), tab); });
