@@ -172,26 +172,39 @@
   const closeMenu = () => { menu?.remove(); menu = null; };
 
   // ---- hover card: after a short rest on a tab row, its full title and address (Arc shows the same) ----
-  let card = null, cardTimer = 0;
-  const hideCard = () => { clearTimeout(cardTimer); card?.remove(); card = null; };
-  const wireHoverCard = (row, tab, title) => {
-    row.addEventListener("mouseenter", () => {
-      hideCard();
-      if (!window.__vm.settings.get("hoverCard")) return;
-      cardTimer = setTimeout(() => {
-        if (!row.isConnected || drag || editing || menu) return;
-        card = el("div", "vm-card");
-        card.append(el("div", "vm-card-title", title), el("div", "vm-card-url", tab.url || ""));
-        const note = tab.mutedInfo?.muted ? "Muted" : tab.audible ? "Playing sound" : tab.discarded ? "Sleeping" : "";
-        if (note) card.append(el("div", "vm-card-note", note));
-        (document.querySelector("#browser") || document.body).append(card);
-        const r = row.getBoundingClientRect(), c = card.getBoundingClientRect();
-        card.style.left = `${r.right + 8}px`;
-        card.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - c.height - 8))}px`;
-      }, 600);
-    });
-    for (const ev of ["mouseleave", "mousedown", "contextmenu", "dragstart"]) row.addEventListener(ev, hideCard);
+  // The sidebar re-renders on every tab update, which replaces the row under a resting pointer without a new
+  // mouseenter, so the pointer position is tracked and the row under it is looked up instead of listening per row.
+  let card = null, cardTimer = 0, cardRow = null, pointer = null;
+  const hideCard = () => { clearTimeout(cardTimer); card?.remove(); card = null; cardRow = null; };
+  const showCard = (row) => {
+    const { tab, title } = row._vmCard;
+    card = el("div", "vm-card");
+    card.append(el("div", "vm-card-title", title), el("div", "vm-card-url", tab.url || ""));
+    const note = tab.mutedInfo?.muted ? "Muted" : tab.audible ? "Playing sound" : tab.discarded ? "Sleeping" : "";
+    if (note) card.append(el("div", "vm-card-note", note));
+    (document.querySelector("#browser") || document.body).append(card);
+    const r = row.getBoundingClientRect(), c = card.getBoundingClientRect();
+    card.style.left = `${r.right + 8}px`;
+    card.style.top = `${Math.max(8, Math.min(r.top, window.innerHeight - c.height - 8))}px`;
   };
+  const armCard = () => {
+    const row = pointer && !drag && !editing && !menu && window.__vm.settings.get("hoverCard")
+      ? document.elementFromPoint(pointer.x, pointer.y)?.closest(".vm-tab") : null;
+    const same = row && cardRow && row._vmCard.tab.id === cardRow._vmCard.tab.id;
+    if (same) {
+      cardRow = row;
+      if (card && !card.isConnected) card = null;
+      return;
+    }
+    hideCard();
+    if (!row) return;
+    cardRow = row;
+    cardTimer = setTimeout(() => { if (cardRow?.isConnected) showCard(cardRow); }, 600);
+  };
+  document.addEventListener("mousemove", (e) => { pointer = { x: e.clientX, y: e.clientY }; armCard(); }, true);
+  for (const ev of ["mousedown", "contextmenu", "dragstart", "wheel"]) document.addEventListener(ev, hideCard, true);
+  document.addEventListener("mouseleave", () => { pointer = null; hideCard(); });
+  const wireHoverCard = (row, tab, title) => { row._vmCard = { tab, title }; };
   const showMenu = (event, items) => {
     event.preventDefault();
     event.stopPropagation();
@@ -690,6 +703,7 @@
 
   const render = () => {
     if (!panel) return;
+    requestAnimationFrame(armCard);
     const scroll = panel.querySelector(".vm-scroll")?.scrollTop ?? 0;
     const body = el("div", "vm-scroll");
     const favLeaves = state.favs ? state.favs.children.filter((c) => !c.children) : [];
